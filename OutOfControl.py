@@ -1,5 +1,6 @@
 import pygame, random, math
 from dataclasses import dataclass
+import copy
 
 SCREEN_WIDTH, SCREEN_HEIGHT = 1080, 720
 
@@ -61,7 +62,6 @@ class Chunk(pygame.sprite.Sprite):
 	def render(self):
 		for x in range(chunk_size):
 			for y in range(chunk_size):
-					
 				if self.grid[x][y].material == Materials.empty:
 					self.surf.set_at((x,y), (255,255,255))
 					
@@ -73,14 +73,13 @@ class Chunk(pygame.sprite.Sprite):
 		
 		
 		if self.shouldstepthisframe:
-			lastframegrid = self.grid
 			#generates a random order to update columbs in
 			order = list(range(0,chunk_size))
 			random.shuffle(order)
 		
 			
 			empty = True
-			
+			moved = False
 			
 			#updating
 			for x in order:
@@ -93,12 +92,14 @@ class Chunk(pygame.sprite.Sprite):
 						
 						if self.grid[x][y].material == Materials.sand:
 							world_x, world_y = self.chunk_to_world(x, y)
-							MoveableSolid.move(world_x, world_y)
+							if MoveableSolid.move(world_x, world_y):
+								moved = True
+							
 			
 					
 					
-
-			self.shouldstepnextframe = True
+			if moved:
+				self.shouldstepnextframe = True
 		
 		
 			return(empty)
@@ -109,14 +110,15 @@ class Chunk(pygame.sprite.Sprite):
 		return(chunk_x, chunk_y)
 			
 #global coordinates to chunk coordinates	
-def get_chunk_coordinates(x, y):
+def get_chunk(x, y):
 	chunk_x = math.floor(x/chunk_size)
 	chunk_y = math.floor(y/chunk_size)
-	rel_x = x % chunk_size
-	rel_y = y % chunk_size
+
 	
-	return([chunk_x, chunk_y, rel_x, rel_y])
+	return(chunk_x, chunk_y)
 	
+
+            
 class Element():
 	
 	def move(x, y):
@@ -136,14 +138,16 @@ class MoveableSolid(Solid):
 		if y+1 < chunks_y * chunk_size:
 			if get_cell_world_coord(x, y+1).material == Materials.empty:
 				swapcells(x ,y ,x ,y+1)
+				return(True)
 				
 			elif x+1 < chunks_x * chunk_size and get_cell_world_coord(x+1, y+1).material == Materials.empty:
 				swapcells(x ,y ,x+1 ,y+1)
+				return(True)
 			
 			elif x-1 >= 0 and get_cell_world_coord(x-1, y+1).material == Materials.empty:
 				swapcells(x ,y ,x-1 ,y+1)
+				return(True)
 			
-
 def swapcells(x1, y1, x2, y2):
 	chunk_x_1 = math.floor(x1/chunk_size) 
 	chunk_y_1 = math.floor(y1/chunk_size)
@@ -167,7 +171,9 @@ def get_cell_world_coord(x, y):
 	
 	if world[chunk_x][chunk_y] == "empty":
 		world[chunk_x][chunk_y] = Chunk(chunk_x, chunk_y, 0)
-		
+        
+	world[chunk_x][chunk_y].shouldstepnextframe = True
+    
 	cell = world[chunk_x][chunk_y].grid[chunk_relative_x][chunk_relative_y]
 	
 	return(cell)
