@@ -27,8 +27,10 @@ def generate_world(chunks_x, chunks_y):
 	for x in range(0,chunks_x):
 		gridrow = []
 		for y in range(0,chunks_y):
-			gridrow.append(Chunk(x, y, 50))
+			gridrow.append(Chunk(x, y, 100))
 		gen.append(gridrow)
+		
+	#gen = [[Chunk(x, y, 100) for y in range(chunks_y)] for x in range(chunks_x)]
 	
 	return(gen)
 
@@ -118,7 +120,7 @@ def get_chunk(x, y):
 	return(chunk_x, chunk_y)
 	
 
-            
+			
 class Element():
 	
 	def move(x, y):
@@ -171,18 +173,18 @@ def get_cell_world_coord(x, y):
 	
 	if world[chunk_x][chunk_y] == "empty":
 		world[chunk_x][chunk_y] = Chunk(chunk_x, chunk_y, 0)
-        
+		
 	world[chunk_x][chunk_y].shouldstepnextframe = True
-    
+	
 	cell = world[chunk_x][chunk_y].grid[chunk_relative_x][chunk_relative_y]
 	
 	return(cell)
 
 running = True
 
-chunk_size = 16
-chunks_x = 18
-chunks_y = 18
+chunk_size = 10
+chunks_x = 16
+chunks_y = 16
 world = generate_world(chunks_x, chunks_y)
 
 emptychunk = pygame.Surface((1,1))
@@ -190,7 +192,6 @@ emptychunk.fill((255,255,255))
 mouse_down = False
 
 total_updates = 0
-
 while running:
 	
 	mouse_click = False
@@ -207,11 +208,15 @@ while running:
 
 			mouse_down = False
 			 
-	clock.tick(30)
+	
 	
 	total_updates += 1
 	time = pygame.time.get_ticks()
-	#print(f'Running at {1000/(time/total_updates):.2f} fps')
+    
+	clock.tick(30)
+    
+	if total_updates %10 == 0:
+		print(f'Running at {1000/(time/total_updates):.2f} fps')
 	
 	mouse_x, mouse_y = pygame.mouse.get_pos()
 	
