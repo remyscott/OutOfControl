@@ -34,6 +34,47 @@ def generate_world(chunks_x, chunks_y):
 	
 	return(gen)
 
+
+class Element():
+	color = (255,255,255)
+	
+	def move(x, y):
+		print("what have you done!!! Element.move() is being called!")
+
+class Empty(Element):
+	def move(x, y):
+		pass
+
+class Solid(Element):
+	def move(x, y):
+		print("what have you done!!! Solid.move() is being called!")
+
+
+
+class ImmoveableSolid(Solid):
+	def move(x, y):
+		pass
+
+class MoveableSolid(Solid):
+	def move(x, y):
+		if y+1 < chunks_y * chunk_size:
+			if get_cell_world_coord(x, y+1).material == Materials.empty:
+				swapcells(x ,y ,x ,y+1)
+				return(True)
+				
+			elif x+1 < chunks_x * chunk_size and get_cell_world_coord(x+1, y+1).material == Materials.empty:
+				swapcells(x ,y ,x+1 ,y+1)
+				return(True)
+			
+			elif x-1 >= 0 and get_cell_world_coord(x-1, y+1).material == Materials.empty:
+				swapcells(x ,y ,x-1 ,y+1)
+				return(True)
+
+class Sand(MoveableSolid):
+	color = (255,255,0)
+	
+
+id_to_material = [Empty, Sand]
 class Chunk(pygame.sprite.Sprite):
 	def __init__(self, x, y, sandprobability):
 		pygame.sprite.Sprite.__init__(self)
@@ -64,11 +105,8 @@ class Chunk(pygame.sprite.Sprite):
 	def render(self):
 		for x in range(chunk_size):
 			for y in range(chunk_size):
-				if self.grid[x][y].material == Materials.empty:
-					self.surf.set_at((x,y), (255,255,255))
-					
-				if self.grid[x][y].material == Materials.sand:
-					self.surf.set_at((x,y), (255,255,0))
+				self.surf.set_at((x,y), id_to_material[self.grid[x][y].material].color)
+				
 	def update(self):
 		self.shouldstepthisframe = self.shouldstepnextframe
 		self.shouldstepnextframe = False
@@ -89,12 +127,14 @@ class Chunk(pygame.sprite.Sprite):
 					if self.grid[x][y].material != Materials.empty:
 						empty = False
 					
-					#if not updated
-					if not self.grid[x][y].updated:
-						
-						if self.grid[x][y].material == Materials.sand:
+						#if not updated
+						if not self.grid[x][y].updated:
 							world_x, world_y = self.chunk_to_world(x, y)
-							if MoveableSolid.move(world_x, world_y):
+							
+							
+							
+							
+							if id_to_material[self.grid[x][y].material].move(world_x, world_y):
 								moved = True
 							
 			
@@ -121,37 +161,11 @@ def get_chunk(x, y):
 	
 
 			
-class Element():
+
 	
-	def move(x, y):
-		print("what have you done!!! Element.move() is being called!")
-		
-
-class Solid(Element):
-	def move(x, y):
-		print("what have you done!!! Solid.move() is being called!")
-
-class ImmoveableSolid(Solid):
-	def move(x, y):
-		pass
-
-class MoveableSolid(Solid):
-	def move(x, y):
-		if y+1 < chunks_y * chunk_size:
-			if get_cell_world_coord(x, y+1).material == Materials.empty:
-				swapcells(x ,y ,x ,y+1)
-				return(True)
-				
-			elif x+1 < chunks_x * chunk_size and get_cell_world_coord(x+1, y+1).material == Materials.empty:
-				swapcells(x ,y ,x+1 ,y+1)
-				return(True)
-			
-			elif x-1 >= 0 and get_cell_world_coord(x-1, y+1).material == Materials.empty:
-				swapcells(x ,y ,x-1 ,y+1)
-				return(True)
 			
 def swapcells(x1, y1, x2, y2):
-	chunk_x_1 = math.floor(x1/chunk_size) 
+	chunk_x_1 = math.floor(x1/chunk_size)
 	chunk_y_1 = math.floor(y1/chunk_size)
 	
 	chunk_x_2 = math.floor(x2/chunk_size)
@@ -160,7 +174,6 @@ def swapcells(x1, y1, x2, y2):
 	cell1 = get_cell_world_coord(x1,y1)
 	cell1.updated = True
 	cell2 = get_cell_world_coord(x2,y2)
-	cell2.updated = True
 	
 	world[chunk_x_1][chunk_y_1].grid[x1%chunk_size][y1%chunk_size] = cell2
 	world[chunk_x_2][chunk_y_2].grid[x2%chunk_size][y2%chunk_size] = cell1
@@ -182,9 +195,9 @@ def get_cell_world_coord(x, y):
 
 running = True
 
-chunk_size = 10
-chunks_x = 16
-chunks_y = 16
+chunk_size = 15
+chunks_x = 10
+chunks_y = 10
 world = generate_world(chunks_x, chunks_y)
 
 emptychunk = pygame.Surface((1,1))
@@ -192,6 +205,13 @@ emptychunk.fill((255,255,255))
 mouse_down = False
 
 total_updates = 0
+time_last_frame = 0
+
+time = 0
+
+cellpixelsize = (720 / chunks_x) / chunk_size
+chunkpixelsize = int(cellpixelsize*chunk_size)
+
 while running:
 	
 	mouse_click = False
@@ -208,24 +228,27 @@ while running:
 
 			mouse_down = False
 			 
+	time_last_frame = time
 	
-	
-	total_updates += 1
+
 	time = pygame.time.get_ticks()
-    
-	clock.tick(30)
-    
-	if total_updates %10 == 0:
-		print(f'Running at {1000/(time/total_updates):.2f} fps')
+	
+	framerate = 1000/(time-time_last_frame)
+	total_updates += 1
+	
+	if total_updates % int(framerate) == 0:
+		print(f'Running at {framerate:.2f} fps')
 	
 	mouse_x, mouse_y = pygame.mouse.get_pos()
 	
 	
+		
 	
-	
-					
-	
-	
+	#draw sand
+	if mouse_down:
+		if world[int(mouse_x/chunkpixelsize)][int(mouse_y/chunkpixelsize)] == "empty":
+			world[int(mouse_x/chunkpixelsize)][int(mouse_y/chunkpixelsize)] = Chunk(int(mouse_x/chunkpixelsize), int(mouse_y/chunkpixelsize), 0)
+		world[int(mouse_x/chunkpixelsize)][int(mouse_y/chunkpixelsize)].grid[int(mouse_x/cellpixelsize)%chunk_size][int(mouse_y/cellpixelsize)%chunk_size].material = 1
 	
 	#updated to false chunks
 	for x in range(0, chunks_x):
