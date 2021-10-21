@@ -56,24 +56,25 @@ class ImmoveableSolid(Solid):
 		pass
 
 class MoveableSolid(Solid):
-	def move(x, y):
-		if y+1 < chunks_y * chunk_size:
-			if get_cell_world_coord(x, y+1).material == Materials.empty:
-				swapcells(x ,y ,x ,y+1)
-				return(True)
-				
-			elif x+1 < chunks_x * chunk_size and get_cell_world_coord(x+1, y+1).material == Materials.empty:
-				swapcells(x ,y ,x+1 ,y+1)
-				return(True)
-			
-			elif x-1 >= 0 and get_cell_world_coord(x-1, y+1).material == Materials.empty:
-				swapcells(x ,y ,x-1 ,y+1)
-				return(True)
+	def move(chunk_x, chunk_y, chunk_relative_x, chunk_relative_y):
+		world_x = chunk_x*chunk_size +chunk_relative_x
+		world_y = chunk_y*chunk_size +chunk_relative_y
+		
+		xrel = 0
+		yrel = 1
+		if get_cell_world_coord(world_x+xrel, world_y+yrel).material == Materials.empty:
+			different_chunks = check_diffent_chunks(chunk_relative_x+xrel, chunk_relative_y+yrel)
+			swapcells(different_chunks, chunk_x, chunk_y, world_x, world_y, world_x+xrel, world_y+yrel)
+			return(True)
 
 class Sand(MoveableSolid):
 	color = (255,255,0)
 	
-
+def check_diffent_chunks(chunk_relative_x, chunk_relative_y):
+	if chunk_relative_x == -1 or chunk_relative_y == -1 or chunk_relative_x == chunk_size or chunk_relative_y == chunk_size:
+		return(True)
+	return(False)
+	
 id_to_material = [Empty, Sand]
 class Chunk(pygame.sprite.Sprite):
 	def __init__(self, x, y, sandprobability):
@@ -105,7 +106,9 @@ class Chunk(pygame.sprite.Sprite):
 	def render(self):
 		for x in range(chunk_size):
 			for y in range(chunk_size):
-				self.surf.set_at((x,y), id_to_material[self.grid[x][y].material].color)
+				color_to_draw = id_to_material[self.grid[x][y].material].color
+				if self.surf.get_at((x, y)) != color_to_draw:
+					self.surf.set_at((x,y), color_to_draw)
 				
 	def update(self):
 		self.shouldstepthisframe = self.shouldstepnextframe
@@ -134,65 +137,75 @@ class Chunk(pygame.sprite.Sprite):
 							
 							
 							
-							if id_to_material[self.grid[x][y].material].move(world_x, world_y):
+							if id_to_material[self.grid[x][y].material].move(self.x, self.y, x, y):
 								moved = True
+								
 							
 			
 					
 					
 			if moved:
 				self.shouldstepnextframe = True
-		
-		
-			return(empty)
+				
+			return(empty) 
+	def awaken_chunk(self, x, y):
+		return()			  
+			
 	def chunk_to_world(self,chunk_x,chunk_y):
 		chunk_x = chunk_x + self.x * chunk_size
 		chunk_y = chunk_y + self.y * chunk_size
 			
 		return(chunk_x, chunk_y)
 			
-#global coordinates to chunk coordinates	
-def get_chunk(x, y):
-	chunk_x = math.floor(x/chunk_size)
-	chunk_y = math.floor(y/chunk_size)
-
-	
-	return(chunk_x, chunk_y)
 	
 
 			
 
 	
 			
-def swapcells(x1, y1, x2, y2):
-	chunk_x_1 = math.floor(x1/chunk_size)
-	chunk_y_1 = math.floor(y1/chunk_size)
+def swapcells(different_chunks, chunk_x, chunk_y, x1, y1, x2, y2):
 	
-	chunk_x_2 = math.floor(x2/chunk_size)
-	chunk_y_2 = math.floor(y2/chunk_size)
+	
+	
+	chunk_x = math.floor(x1/chunk_size)
+	chunk_y = math.floor(y1/chunk_size)
 	
 	cell1 = get_cell_world_coord(x1,y1)
 	cell1.updated = True
 	cell2 = get_cell_world_coord(x2,y2)
 	
-	world[chunk_x_1][chunk_y_1].grid[x1%chunk_size][y1%chunk_size] = cell2
-	world[chunk_x_2][chunk_y_2].grid[x2%chunk_size][y2%chunk_size] = cell1
-	
+	if different_chunks:
+		chunk_x_2 = math.floor(x2/chunk_size)
+		chunk_y_2 = math.floor(y2/chunk_size)
+		world[chunk_x][chunk_y].grid[x1%chunk_size][y1%chunk_size] = cell2
+		world[chunk_x_2][chunk_y_2].grid[x2%chunk_size][y2%chunk_size] = cell1
+		
+	else:
+		world[chunk_x][chunk_y].grid[x1%chunk_size][y1%chunk_size] = cell2
+		world[chunk_x][chunk_y].grid[x2%chunk_size][y2%chunk_size] = cell1
+		
+
+class Void():
+	material = -1
 def get_cell_world_coord(x, y):
+	
+	if x == -1 or x == chunk_size*chunks_x or y == -1 or y == chunk_size*chunks_y:
+		return(Void)
+		
 	chunk_x = math.floor(x/chunk_size)
 	chunk_y = math.floor(y/chunk_size)
+	
 	chunk_relative_x = x % chunk_size
 	chunk_relative_y = y % chunk_size
-	
-	if world[chunk_x][chunk_y] == "empty":
-		world[chunk_x][chunk_y] = Chunk(chunk_x, chunk_y, 0)
 		
-	world[chunk_x][chunk_y].shouldstepnextframe = True
-	
+	create_chunk(chunk_x, chunk_y)
 	cell = world[chunk_x][chunk_y].grid[chunk_relative_x][chunk_relative_y]
 	
 	return(cell)
 
+def create_chunk(x,y):
+	if world[x][y] == "empty":
+		world[x][y] = Chunk(x, y, 0)
 running = True
 
 chunk_size = 15
@@ -212,6 +225,8 @@ time = 0
 cellpixelsize = (720 / chunks_x) / chunk_size
 chunkpixelsize = int(cellpixelsize*chunk_size)
 
+
+
 while running:
 	
 	mouse_click = False
@@ -219,8 +234,8 @@ while running:
 	for event in pygame.event.get():
 		if event.type == pygame.QUIT:
 			running = False
+			
 		if event.type == pygame.MOUSEBUTTONDOWN:
-
 			mouse_click = True
 			mouse_down = True
 			
@@ -238,6 +253,9 @@ while running:
 	
 	if total_updates % int(framerate) == 0:
 		print(f'Running at {framerate:.2f} fps')
+	
+	#if framerate >= 60:
+	#	clock.tick(60)
 	
 	mouse_x, mouse_y = pygame.mouse.get_pos()
 	
@@ -273,9 +291,9 @@ while running:
 	for x in range(0, chunks_x):
 		for y in range(0, chunks_y):
 			if not world[x][y] == "empty":
-				display.blit(pygame.transform.scale(world[x][y].surf, (int(720/chunks_x),int(720/chunks_y))), (x*(720/chunks_x), y*(720/chunks_y)))
+				display.blit(pygame.transform.scale(world[x][y].surf,  (chunkpixelsize, chunkpixelsize)), (x*chunkpixelsize, y*chunkpixelsize))
 			else:
-				display.blit(pygame.transform.scale(emptychunk, (int(720/chunks_x), int(720/chunks_y))), (x*(720/chunks_x), y*(720/chunks_y)))
+				display.blit(pygame.transform.scale(emptychunk, (chunkpixelsize, chunkpixelsize)), (x*chunkpixelsize, y*chunkpixelsize))
 					
 	pygame.display.update()
 	
