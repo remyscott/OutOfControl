@@ -27,7 +27,7 @@ def generate_world(chunks_x, chunks_y):
 	for x in range(0,chunks_x):
 		gridrow = []
 		for y in range(0,chunks_y):
-			gridrow.append(Chunk(x, y, 100))
+			gridrow.append(Chunk(x, y, 0))
 		gen.append(gridrow)
 		
 	#gen = [[Chunk(x, y, 100) for y in range(chunks_y)] for x in range(chunks_x)]
@@ -36,12 +36,15 @@ def generate_world(chunks_x, chunks_y):
 
 
 class Element():
-	color = (255,255,255)
 	
+	color = (255,192,203)
+	
+		
 	def move(x, y):
 		print("what have you done!!! Element.move() is being called!")
 
 class Empty(Element):
+	color = (245, 245, 245)
 	def move(x, y):
 		pass
 
@@ -60,19 +63,64 @@ class MoveableSolid(Solid):
 		world_x = chunk_x*chunk_size +chunk_relative_x
 		world_y = chunk_y*chunk_size +chunk_relative_y
 		
-		xrel = 0
-		yrel = 1
+		xrel, yrel = 0 , 1
 		if get_cell_world_coord(world_x+xrel, world_y+yrel).material == Materials.empty:
+
 			different_chunks = check_diffent_chunks(chunk_relative_x+xrel, chunk_relative_y+yrel)
 			swapcells(different_chunks, chunk_x, chunk_y, world_x, world_y, world_x+xrel, world_y+yrel)
+			
+			wakup_neighbors(chunk_x, chunk_y, chunk_relative_x, chunk_relative_y)
+			
 			return(True)
+		
+		first_dir = random.randint(0,1)*2 - 1
+		xrel, yrel = first_dir , 1
+		if get_cell_world_coord(world_x+xrel, world_y+yrel).material == Materials.empty:
+
+			different_chunks = check_diffent_chunks(chunk_relative_x+xrel, chunk_relative_y+yrel)
+			swapcells(different_chunks, chunk_x, chunk_y, world_x, world_y, world_x+xrel, world_y+yrel)
+			
+			wakup_neighbors(chunk_x, chunk_y, chunk_relative_x, chunk_relative_y)
+			return(True)
+			
+		xrel, yrel = first_dir*-1 , 1
+		if get_cell_world_coord(world_x+xrel, world_y+yrel).material == Materials.empty:
+
+			different_chunks = check_diffent_chunks(chunk_relative_x+xrel, chunk_relative_y+yrel)
+			swapcells(different_chunks, chunk_x, chunk_y, world_x, world_y, world_x+xrel, world_y+yrel)
+			
+			wakup_neighbors(chunk_x, chunk_y, chunk_relative_x, chunk_relative_y)
+			return(True)
+			
 
 class Sand(MoveableSolid):
 	color = (255,255,0)
-	
+
+
+	 
 def check_diffent_chunks(chunk_relative_x, chunk_relative_y):
-	if chunk_relative_x == -1 or chunk_relative_y == -1 or chunk_relative_x == chunk_size or chunk_relative_y == chunk_size:
+	if chunk_relative_x < 0 or chunk_relative_y < 0 or chunk_relative_x >= chunk_size or chunk_relative_y >= chunk_size:
 		return(True)
+	return(False)
+
+def wakup_neighbors(chunk_x, chunk_y,chunk_relative_x, chunk_relative_y):
+	if chunk_relative_x == 0 and not chunk_x == 0:
+		create_chunk(chunk_x-1, chunk_y)
+		world[chunk_x-1][chunk_y].shouldstepnextframe, world[chunk_x-1][chunk_y].updated_by_other = True, True
+	
+	if chunk_relative_y == 0 and not chunk_y == 0:
+		create_chunk(chunk_x, chunk_y-1)
+		world[chunk_x][chunk_y-1].shouldstepnextframe, world[chunk_x][chunk_y-1].updated_by_other = True, True
+	
+	if chunk_relative_x == chunk_size-1 and not chunk_x == chunks_x-1:
+		create_chunk(chunk_x+1, chunk_y)
+		world[chunk_x+1][chunk_y].shouldstepnextframe, world[chunk_x+1][chunk_y].updated_by_other = True, True
+	
+	if chunk_relative_y == chunk_size-1 and not chunk_y == chunks_y-1:
+		create_chunk(chunk_x, chunk_y+1)
+		world[chunk_x][chunk_y+1].shouldstepnextframe, world[chunk_x][chunk_y+1].updated_by_other = True, True
+	
+	
 	return(False)
 	
 id_to_material = [Empty, Sand]
@@ -82,13 +130,13 @@ class Chunk(pygame.sprite.Sprite):
 		self.surf = pygame.Surface((chunk_size, chunk_size))
 		self.grid = []
 		self.x, self.y = x, y
-		
+		self.updated_by_other = False
 		for x in range(0,chunk_size):
 			gridrow = []
 			for y in range(0,chunk_size):
 				gridrow.append(
 					Cell(
-						material = Materials.sand if random.randint(0, 1000) < sandprobability else Materials.empty, 
+						material = Materials.empty, 
 						updated = False
 					)
 				)
@@ -111,9 +159,11 @@ class Chunk(pygame.sprite.Sprite):
 					self.surf.set_at((x,y), color_to_draw)
 				
 	def update(self):
+		
 		self.shouldstepthisframe = self.shouldstepnextframe
 		self.shouldstepnextframe = False
-		
+		if self.updated_by_other:
+			self.shouldstepthisframe = True
 		
 		if self.shouldstepthisframe:
 			#generates a random order to update columbs in
@@ -143,7 +193,7 @@ class Chunk(pygame.sprite.Sprite):
 							
 			
 					
-					
+			
 			if moved:
 				self.shouldstepnextframe = True
 				
@@ -179,7 +229,6 @@ def swapcells(different_chunks, chunk_x, chunk_y, x1, y1, x2, y2):
 		chunk_y_2 = math.floor(y2/chunk_size)
 		world[chunk_x][chunk_y].grid[x1%chunk_size][y1%chunk_size] = cell2
 		world[chunk_x_2][chunk_y_2].grid[x2%chunk_size][y2%chunk_size] = cell1
-		
 	else:
 		world[chunk_x][chunk_y].grid[x1%chunk_size][y1%chunk_size] = cell2
 		world[chunk_x][chunk_y].grid[x2%chunk_size][y2%chunk_size] = cell1
@@ -209,12 +258,12 @@ def create_chunk(x,y):
 running = True
 
 chunk_size = 15
-chunks_x = 10
-chunks_y = 10
+chunks_x = 27
+chunks_y = 18
 world = generate_world(chunks_x, chunks_y)
 
 emptychunk = pygame.Surface((1,1))
-emptychunk.fill((255,255,255))
+emptychunk.fill(Empty.color)
 mouse_down = False
 
 total_updates = 0
@@ -222,7 +271,7 @@ time_last_frame = 0
 
 time = 0
 
-cellpixelsize = (720 / chunks_x) / chunk_size
+cellpixelsize = min((1080 / chunks_x) / chunk_size,(720 / chunks_y) / chunk_size)
 chunkpixelsize = int(cellpixelsize*chunk_size)
 
 
@@ -243,16 +292,16 @@ while running:
 
 			mouse_down = False
 			 
-	time_last_frame = time
+	#time_last_frame = time
 	
 
-	time = pygame.time.get_ticks()
+	#time = pygame.time.get_ticks()
 	
-	framerate = 1000/(time-time_last_frame)
-	total_updates += 1
+	#framerate = 1000/(time-time_last_frame)
+	#total_updates += 1
 	
-	if total_updates % int(framerate) == 0:
-		print(f'Running at {framerate:.2f} fps')
+	#if total_updates % int(framerate) == 0:
+	#	print(f'Running at {framerate:.0f} fps')
 	
 	#if framerate >= 60:
 	#	clock.tick(60)
@@ -264,9 +313,9 @@ while running:
 	
 	#draw sand
 	if mouse_down:
-		if world[int(mouse_x/chunkpixelsize)][int(mouse_y/chunkpixelsize)] == "empty":
-			world[int(mouse_x/chunkpixelsize)][int(mouse_y/chunkpixelsize)] = Chunk(int(mouse_x/chunkpixelsize), int(mouse_y/chunkpixelsize), 0)
+		create_chunk(int(mouse_x/chunkpixelsize),int(mouse_y/chunkpixelsize))
 		world[int(mouse_x/chunkpixelsize)][int(mouse_y/chunkpixelsize)].grid[int(mouse_x/cellpixelsize)%chunk_size][int(mouse_y/cellpixelsize)%chunk_size].material = 1
+		world[int(mouse_x/chunkpixelsize)][int(mouse_y/chunkpixelsize)].shouldstepnextframe = True
 	
 	#updated to false chunks
 	for x in range(0, chunks_x):
