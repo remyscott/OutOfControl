@@ -117,6 +117,7 @@ class Materials:
 	empty = 0
 	sand = 1
 	gravel = 2
+	water = 3
 
 class Element():
 	acceptible_moves = [Materials.empty]
@@ -133,9 +134,43 @@ class Empty(Element):
 	def move(x, y):
 		pass
 
+class Liquid(Element):
+	acceptible_moves = [Materials.empty]
+	def move(chunk_x, chunk_y, chunk_relative_x, chunk_relative_y):
+		world_x = chunk_x*chunk_size +chunk_relative_x
+		world_y = chunk_y*chunk_size +chunk_relative_y
+		
+		def try_move(xrel, yrel):
+			return(get_cell_world_coord(world_x+xrel, world_y+yrel).material in Liquid.acceptible_moves)
+		
+		def do_move(xrel, yrel):
+			different_chunks = check_diffent_chunks(chunk_relative_x+xrel, chunk_relative_y+yrel)
+			swapcells(different_chunks, chunk_x, chunk_y, world_x, world_y, world_x+xrel, world_y+yrel)
+			
+			wakeup_neighbors(chunk_x, chunk_y, chunk_relative_x, chunk_relative_y)
+			return(True)
+		if try_move(0,1):
+			return(do_move(0,1))
+
+		first_dir = random.randint(0,1)*2 - 1
+		second_dir = first_dir*-1
+
+		if try_move(first_dir,1):
+			return(do_move(first_dir,1))
+
+		if try_move(second_dir,1):
+			return(do_move(second_dir,1))
+		
+		if try_move(first_dir,0):
+			return(do_move(first_dir,0))
+
+		if try_move(second_dir,0):
+			return(do_move(second_dir,0))
+
 class Solid(Element):
 	def move(x, y):
 		print("what have you done!!! Solid.move() is being called!")
+
 
 
 
@@ -179,9 +214,12 @@ class Gravel(MoveableSolid):
 	color_variation = 30
 	color = (170,170,150)
 
-id_to_material = [Empty, Sand, Gravel]
+class Water(Liquid):
+	color = (100,100,200)
 
-material_names = ['empty', 'sand', 'gravel']
+id_to_material = [Empty, Sand, Gravel, Water]
+
+material_names = ['empty', 'sand', 'gravel', 'water']
 
 
 	
