@@ -113,7 +113,14 @@ class Button(pygame.sprite.Sprite):
 		
 		display.blit(self.img, (self.x, self.y))
 
+class Materials:
+	empty = 0
+	sand = 1
+	gravel = 2
+
 class Element():
+	acceptible_moves = [Materials.empty]
+	color_variation = 0
 	
 	color = (255,192,203)
 	
@@ -137,54 +144,46 @@ class ImmoveableSolid(Solid):
 		pass
 
 class MoveableSolid(Solid):
+	acceptible_moves = [Materials.empty]
 	def move(chunk_x, chunk_y, chunk_relative_x, chunk_relative_y):
 		world_x = chunk_x*chunk_size +chunk_relative_x
 		world_y = chunk_y*chunk_size +chunk_relative_y
 		
-		xrel, yrel = 0 , 1
-		if get_cell_world_coord(world_x+xrel, world_y+yrel).material == Materials.empty:
-
-			different_chunks = check_diffent_chunks(chunk_relative_x+xrel, chunk_relative_y+yrel)
-			swapcells(different_chunks, chunk_x, chunk_y, world_x, world_y, world_x+xrel, world_y+yrel)
-			
-			wakup_neighbors(chunk_x, chunk_y, chunk_relative_x, chunk_relative_y)
-			
-			return(True)
+		def try_move(xrel, yrel):
+			return(get_cell_world_coord(world_x+xrel, world_y+yrel).material in MoveableSolid.acceptible_moves)
 		
+		def do_move(xrel, yrel):
+			different_chunks = check_diffent_chunks(chunk_relative_x+xrel, chunk_relative_y+yrel)
+			swapcells(different_chunks, chunk_x, chunk_y, world_x, world_y, world_x+xrel, world_y+yrel)
+			
+			wakeup_neighbors(chunk_x, chunk_y, chunk_relative_x, chunk_relative_y)
+			return(True)
+		if try_move(0,1):
+			return(do_move(0,1))
+
 		first_dir = random.randint(0,1)*2 - 1
-		xrel, yrel = first_dir , 1
-		if get_cell_world_coord(world_x+xrel, world_y+yrel).material == Materials.empty:
+		second_dir = first_dir*-1
 
-			different_chunks = check_diffent_chunks(chunk_relative_x+xrel, chunk_relative_y+yrel)
-			swapcells(different_chunks, chunk_x, chunk_y, world_x, world_y, world_x+xrel, world_y+yrel)
-			
-			wakup_neighbors(chunk_x, chunk_y, chunk_relative_x, chunk_relative_y)
-			return(True)
-			
-		xrel, yrel = first_dir*-1 , 1
-		if get_cell_world_coord(world_x+xrel, world_y+yrel).material == Materials.empty:
+		if try_move(first_dir,1):
+			return(do_move(first_dir,1))
 
-			different_chunks = check_diffent_chunks(chunk_relative_x+xrel, chunk_relative_y+yrel)
-			swapcells(different_chunks, chunk_x, chunk_y, world_x, world_y, world_x+xrel, world_y+yrel)
-			
-			wakup_neighbors(chunk_x, chunk_y, chunk_relative_x, chunk_relative_y)
-			return(True)
+		if try_move(second_dir,1):
+			return(do_move(second_dir,1))
 			
 
 class Sand(MoveableSolid):
-	color = (255,255,0)
+	color_variation = 15
+	color = (255,220,100)
 
 class Gravel(MoveableSolid):
-	color = (150,150,150)
+	color_variation = 30
+	color = (170,170,150)
 
 id_to_material = [Empty, Sand, Gravel]
 
 material_names = ['empty', 'sand', 'gravel']
 
-class Materials:
-	empty = 0
-	sand = 1
-	gravel = 2
+
 	
 buttons = pygame.sprite.Group()
 for i in range(len(id_to_material)):
@@ -192,14 +191,13 @@ for i in range(len(id_to_material)):
 	buttons.add(new_button)
 
 color_offsets_num = 5
-color_offsets = [(Empty.color,Empty.color,Empty.color,Empty.color,Empty.color,)]
+color_offsets = []
 
-color_offset_amount = 30
-for i in range(1,len(id_to_material)):
+for i in range(len(id_to_material)):
 	base_color = id_to_material[i].color
 	color_offset_for_material = [base_color]
 	for a in range(color_offsets_num-1):
-		rd = random.randint(-color_offset_amount,color_offset_amount)
+		rd = random.randint(-id_to_material[i].color_variation,id_to_material[i].color_variation)
 		cr = base_color[0] + rd
 		cb = base_color[1] + rd
 		cg = base_color[2] + rd
@@ -225,7 +223,7 @@ def check_diffent_chunks(chunk_relative_x, chunk_relative_y):
 		return(True)
 	return(False)
 
-def wakup_neighbors(chunk_x, chunk_y,chunk_relative_x, chunk_relative_y):
+def wakeup_neighbors(chunk_x, chunk_y,chunk_relative_x, chunk_relative_y):
 	if chunk_relative_x == 0 and not chunk_x == 0:
 		create_chunk(chunk_x-1, chunk_y)
 		world[chunk_x-1][chunk_y].updated_by_other = True
