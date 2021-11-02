@@ -129,9 +129,13 @@ class Materials:
 	water = 3
 	blood = 4
 
+
+
 class Element():
-	color_offset_amount = 0
 	defaults = []
+	acceptible_moves = [Materials.empty]
+	color_offset_amount = 0
+
 	
 	color = (255,192,203)
 	
@@ -143,68 +147,61 @@ class Empty(Element):
 	color = (245, 245, 245)
 
 
+
+
 class Liquid(Element):
+	defaults = [0]
 	acceptible_moves = [Materials.empty]
-	def move(chunk_x, chunk_y, chunk_relative_x, chunk_relative_y, material_specific):
-	
-		moved = False
+	def move(chunk_x, chunk_y, chunk_relative_x, chunk_relative_y):
 		world_x = chunk_x*chunk_size +chunk_relative_x
 		world_y = chunk_y*chunk_size +chunk_relative_y
 		
-		
 		def try_move(xrel, yrel):
+			return(get_cell_world_coord(world_x+xrel, world_y+yrel).material in Liquid.acceptible_moves)
 		
-			requested_tile_material = get_cell_world_coord(world_x+xrel, world_y+yrel).material
-			
-			return(requested_tile_material in Liquid.acceptible_moves)
-		
-		
-		def real_move(xrel, yrel):
+		def do_move(xrel, yrel):
 			different_chunks = check_diffent_chunks(chunk_relative_x+xrel, chunk_relative_y+yrel)
 			swapcells(different_chunks, chunk_x, chunk_y, world_x, world_y, world_x+xrel, world_y+yrel)
 			
 			wakeup_neighbors(chunk_x, chunk_y, chunk_relative_x, chunk_relative_y)
-			
 			return(True)
-		
-		first_dir = random.randint(0,1)*2 - 1
-		second_dir = first_dir * -1
-		
 		if try_move(0,1):
-			return(real_move(0,1))
+			return(do_move(0,1))
+
+		first_dir = random.randint(0,1)*2 - 1
+		second_dir = first_dir*-1
+
+		if try_move(first_dir,1):
+			return(do_move(first_dir,1))
+
+		if try_move(second_dir,1):
+			return(do_move(second_dir,1))
 		
-		
-		elif try_move(first_dir,1):
-			return(real_move(first_dir,1))
-			
-		elif try_move(second_dir,1):
-			return(real_move(second_dir,1))
-		
-		elif try_move(first_dir,0):
-			return(real_move(first_dir,0))
-			
-		elif try_move(second_dir,0):
-			return(real_move(second_dir,0))
-			
+		if try_move(first_dir,0):
+			return(do_move(first_dir,0))
+
+		if try_move(second_dir,0):
+			return(do_move(second_dir,0))
+
+
+
 class Solid(Element):
 	def move(chunk_x, chunk_y, chunk_relative_x, chunk_relative_y, material_specific):
 		return()
 
 class ImmoveableSolid(Solid):
 	def move(x, y):
-		pass
-		
+		pass		
 
 	
 class MoveableSolid(Solid):
 	acceptible_moves = [Materials.empty, Materials.water, Materials.blood]
 	defaults = [0,0]
-	def move(chunk_x, chunk_y, chunk_relative_x, chunk_relative_y, material_specific):
+	def move(chunk_x, chunk_y, chunk_relative_x, chunk_relative_y):
 		moved = False
 		world_x = chunk_x*chunk_size +chunk_relative_x
 		world_y = chunk_y*chunk_size +chunk_relative_y
 		
-		vx, vy = material_specific[0], material_specific[1]
 		
 		def try_move(xrel, yrel):
 		
@@ -226,7 +223,6 @@ class MoveableSolid(Solid):
 		
 		if try_move(0,1):
 			return(real_move(0,1))
-		
 		
 		elif try_move(first_dir,1):
 			return(real_move(first_dir,1))
@@ -256,7 +252,6 @@ id_to_material = [Empty, Sand, Gravel, Water, Blood]
 material_names = ['empty', 'sand', 'gravel', 'water', 'blood']
 
 
-	
 buttons = pygame.sprite.Group()
 for i in range(len(id_to_material)):
 	new_button = Button(generate_button(material_names[i], id_to_material[i].color), i, 728,8+i*28)
@@ -264,6 +259,7 @@ for i in range(len(id_to_material)):
 
 color_offsets_num = 5
 color_offsets = []
+
 
 for i in range(0,len(id_to_material)):
 	base_color = id_to_material[i].color
@@ -364,15 +360,16 @@ class Chunk(pygame.sprite.Sprite):
 		if self.shouldstepthisframe:
 			#generates a random order to update columbs in
 			order = list(range(0,chunk_size))
+			order2 = list(range(0,chunk_size))
 			random.shuffle(order)
-		
+			random.shuffle(order2)
 			
 			empty = True
 			moved = False
 			
 			#updating
 			for x in order:
-				for y in order:#(chunk_size-1, -1, -1):
+				for y in order2:#(chunk_size-1, -1, -1):
 					if self.grid[x][y].material != Materials.empty:
 						empty = False
 					
@@ -381,7 +378,7 @@ class Chunk(pygame.sprite.Sprite):
 							world_x, world_y = self.chunk_to_world(x, y)
 							
 
-							if id_to_material[self.grid[x][y].material].move(self.x, self.y, x, y, self.grid[x][y].material_specific):
+							if id_to_material[self.grid[x][y].material].move(self.x, self.y, x, y):
 								moved = True
 								
 							
@@ -519,6 +516,7 @@ while running:
 						cell.material = selected
 						cell.material_specific = id_to_material[selected].defaults
 						cell.color_offset = random.randint(0,color_offsets_num-1)
+						world[int((mouse_x+a*cellpixelsize)/chunkpixelsize)][int(int((mouse_y+b*cellpixelsize)/chunkpixelsize))].updated_by_other = True
 	
 	
 	time_since_last_render += time-time_last_frame
@@ -536,7 +534,7 @@ while running:
 				if not world[x][y] == "empty":
 					if world[x][y].update() == True:
 						world[x][y] = "empty"
-                        
+						
 		#chunks render
 		for x in range(0, chunks_x):
 			for y in range(0, chunks_y):
