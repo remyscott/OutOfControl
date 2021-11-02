@@ -198,9 +198,12 @@ class MoveableSolid(Solid):
 	acceptible_moves = [Materials.empty, Materials.water, Materials.blood]
 	defaults = [0,0]
 	def move(chunk_x, chunk_y, chunk_relative_x, chunk_relative_y):
-		moved = False
+		
 		world_x = chunk_x*chunk_size +chunk_relative_x
 		world_y = chunk_y*chunk_size +chunk_relative_y
+		material_specific = get_cell_world_coord(world_x, world_y).material_specific
+		moved = False
+		
 		
 		
 		def try_move(xrel, yrel):
@@ -222,8 +225,20 @@ class MoveableSolid(Solid):
 		second_dir = first_dir * -1
 		
 		if try_move(0,1):
-			return(real_move(0,1))
+			material_specific[0] += 1
 		
+		if try_move(0,1):
+			downward_distance_traveled = 0
+			for i in range(1, material_specific[0]+1):
+				
+				if try_move(0,i):
+					downward_distance_traveled += 1
+				elif try_move(0,i) == False:
+					material_specific[0] = 1
+					return(real_move(0,downward_distance_traveled))
+					
+			return(real_move(0,downward_distance_traveled))
+			
 		elif try_move(first_dir,1):
 			return(real_move(first_dir,1))
 			
@@ -360,16 +375,14 @@ class Chunk(pygame.sprite.Sprite):
 		if self.shouldstepthisframe:
 			#generates a random order to update columbs in
 			order = list(range(0,chunk_size))
-			order2 = list(range(0,chunk_size))
 			random.shuffle(order)
-			random.shuffle(order2)
 			
 			empty = True
 			moved = False
 			
 			#updating
 			for x in order:
-				for y in order2:#(chunk_size-1, -1, -1):
+				for y in order:
 					if self.grid[x][y].material != Materials.empty:
 						empty = False
 					
@@ -539,7 +552,8 @@ while running:
 		for x in range(0, chunks_x):
 			for y in range(0, chunks_y):
 				if not world[x][y] == "empty":
-					world[x][y].render()
+					if not world[x][y].shouldstepnextframe == False:
+						world[x][y].render()
 				
 		#render chunks
 		for x in range(0, chunks_x):
