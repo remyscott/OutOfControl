@@ -66,6 +66,14 @@ def generate_world(chunks_x, chunks_y):
 	
 	return(gen)
 
+def generate_wind_world(chunks_x, chunks_y):
+	
+
+		
+	gen = [[[10,[0,0]] for y in range(chunks_y*chunk_size)] for x in range(chunks_x*chunk_size)]
+	
+	return(gen)
+
 
 
 
@@ -445,7 +453,9 @@ running = True
 chunk_size = 10
 chunks_x = 18
 chunks_y = 18
+
 world = generate_world(chunks_x, chunks_y)
+wind_world = generate_wind_world(chunks_x, chunks_y)
 
 emptychunk = pygame.Surface((1,1))
 emptychunk.fill(Empty.color)
@@ -526,6 +536,7 @@ while running:
 				if not world[x][y] == "empty":
 					if world[x][y].update() == True:
 						world[x][y] = "empty"
+                        
 		#chunks render
 		for x in range(0, chunks_x):
 			for y in range(0, chunks_y):
